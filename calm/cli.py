@@ -64,15 +64,21 @@ def _resolve_config(args) -> ExperimentConfig:
 
 
 def cmd_prepare(args) -> int:
-    from calm.prepare import prepare_dataset
+    roots = args.structure_dir or ["data/splits_final"]
+    if args.summary_csv:
+        from calm.sabdab import prepare_from_summary
 
-    table, report = prepare_dataset(
-        args.split_csv,
-        args.structure_dir,
-        args.output,
-        workers=args.workers,
-        limit=args.limit,
-    )
+        table, report = prepare_from_summary(args.summary_csv, roots, args.output, limit=args.limit)
+    else:
+        from calm.prepare import prepare_dataset
+
+        table, report = prepare_dataset(
+            args.split_csv,
+            roots,
+            args.output,
+            workers=args.workers,
+            limit=args.limit,
+        )
     target = Path(args.output)
     filtered, filter_report = schema.validate(table, require_masks=False)
     final = target.with_name(target.stem.replace("_raw", "") + target.suffix)
@@ -236,7 +242,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     prepare = sub.add_parser("prepare", help="build the CALM table from SAbDab structures")
     prepare.add_argument("--split-csv", default="data/splits_final/abag_split.csv")
-    prepare.add_argument("--structure-dir", default="data/splits_final")
+    prepare.add_argument("--structure-dir", action="append", default=None)
+    prepare.add_argument("--summary-csv", default=None)
     prepare.add_argument("--output", default="data/calm_dataset_raw.csv")
     prepare.add_argument("--workers", type=int, default=None)
     prepare.add_argument("--limit", type=int, default=0)

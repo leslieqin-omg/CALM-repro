@@ -1,6 +1,9 @@
 .venv/
 artifacts/
 data/splits_final/
+data/sabdab_all_structures/
+data/*.tar.gz
+data/*.zip
 __pycache__/
 *.pyc
 *.pyo

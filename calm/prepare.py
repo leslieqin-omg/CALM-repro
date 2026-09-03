@@ -136,6 +136,8 @@ def annotate(job):
     from Bio.PDB.MMCIFParser import MMCIFParser
 
     path, heavy, light, antigen, vh_expect, vl_expect = job
+    if path == "":
+        return {"status": "structure_not_found"}
     parser = MMCIFParser(QUIET=True)
     try:
         model = parser.get_structure("s", path)[0]
@@ -217,13 +219,36 @@ def _iter_results(jobs, workers, log):
         yield annotate(job)
 
 
+def structure_roots(structure_dir) -> list:
+    if isinstance(structure_dir, (str, Path)):
+        items = [structure_dir]
+    else:
+        items = list(structure_dir)
+    return [Path(item) for item in items if _text(item)]
+
+
+def resolve_structure(instance: str, roots) -> tuple:
+    entry = "_".join(instance.split("_")[:2])
+    for root in roots:
+        direct = root / (instance + ".cif")
+        if direct.is_file():
+            return str(direct), "instance"
+        whole = root / entry / (entry + "_sabdab.cif")
+        if whole.is_file():
+            return str(whole), "entry"
+    return "", "unresolved"
+
+
 def build_rows(selected: pd.DataFrame, structure_dir, workers, log) -> tuple[list, dict]:
-    root = Path(structure_dir)
+    roots = structure_roots(structure_dir)
     jobs = []
+    sources = dict()
     for row in selected.itertuples():
+        path, origin = resolve_structure(str(row.INSTANCE), roots)
+        sources[origin] = sources.get(origin, 0) + 1
         jobs.append(
             (
-                str(root / (str(row.INSTANCE) + ".cif")),
+                path,
                 _text(row.Hchain),
                 _text(row.Lchain),
                 _text(row.agchains),
@@ -231,6 +256,7 @@ def build_rows(selected: pd.DataFrame, structure_dir, workers, log) -> tuple[lis
                 _text(row.VL_numerable_seq).upper(),
             )
         )
+    log(f"[prepare] structure sources: {sources}")
     statuses: dict = {}
     rows = []
     source = list(selected.itertuples())
@@ -245,6 +271,8 @@ def build_rows(selected: pd.DataFrame, structure_dir, workers, log) -> tuple[lis
             continue
         rows.append(_assemble(row, result))
     statuses_report = {f"status_{key}": int(value) for key, value in sorted(statuses.items())}
+    for key, value in sorted(sources.items()):
+        statuses_report["structure_" + key] = int(value)
     return rows, statuses_report
 
 

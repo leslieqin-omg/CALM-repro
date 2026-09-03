@@ -43,9 +43,17 @@ pip install -r requirements-cuda.txt
 pip install -e .
 ```
 
-两个可选依赖:
+纯 pip 路线要额外装 HMMER 系统二进制 (ANARCI 依赖 `hmmscan`), pip 装不了:
+
+```bash
+sudo apt install hmmer        # Debian / Ubuntu
+conda install -c bioconda hmmer   # 或者用 conda
+```
+
+三个依赖的注意事项:
 
 - mmseqs2 必须安装。缺失时聚类会退化到精确序列匹配, 40/60/80 三档阈值会给出完全相同的结果, 论文的核心分层实验就失效了。程序会在 cluster_notes 里明确报警。
+- ANARCI + AbNumber + HMMER 只在 `calm prepare` 阶段需要, 用于按 Chothia 编号从结构链里切出 VH/VL 可变区。如果直接用仓库里已生成的 `data/calm_dataset.csv`, 这三个可以不装。
 - parasail 用于泄漏审计的 Needleman-Wunsch 比对。若 pip 装不上（例如 Python 3.13 无预编译轮子）, 本仓库会自动回退到 Biopython 的 PairwiseAligner, 使用同样的 BLOSUM62 / gap open 11 / gap extend 1 参数与同样的相似度定义（对齐区 percent identity 乘 alignment coverage）, 功能等价。
 
 确认环境:
@@ -58,21 +66,17 @@ calm info
 
 ## 3. 数据
 
-用户已下载 SAbDab2 ML release 原始数据到 `data/splits_final/`:
+论文的数据起点是 SAbDab 官方全量快照。请从 SAbDab 下载 "All structures" 归档并解压到 `data/sabdab_all_structures/`, 目录里需要包含:
 
-- 15,004 个 `.cif` 结构文件, 命名 `pdb_<PDB_ID>_<VH_CHAIN>_<VL_CHAIN>.cif`, 单域缺失链用 `+` 占位
-- `abag_split.csv` (15,641 行, 48 列) 是 CALM 使用的切分表
+- `sabdab_summary_all.csv` 官方元数据表 (22,149 行, 45 列), 每行是一个 Ab-Ag instance
+- `pdb_<PDB_ID>/pdb_<PDB_ID>_sabdab.cif` 整条目结构文件 (11,543 个, 覆盖 summary 表里全部 PDB)
 
-这份数据是结构文件 + 切分表, 不是论文的 CALM schema 表, 所以本仓库写了适配层 `calm/prepare.py`, 负责解析结构、按 5 A 距离标注 paratope/epitope、并输出论文所需的列。
-
-```bash
-calm prepare
-```
-
-默认等价于:
+这份数据是结构文件 + 元数据表, 不是论文的 CALM schema 表, 所以本仓库写了适配层 `calm/sabdab.py`, 负责按论文口径筛选 instance、用 AbNumber 的 Chothia 编号从结构链里切出 VH/VL、按 5 A 距离标注 paratope/epitope、并输出论文所需的列。
 
 ```bash
-calm prepare --split-csv data/splits_final/abag_split.csv --structure-dir data/splits_final --output data/calm_dataset_raw.csv
+calm prepare --summary-csv data/sabdab_all_structures/sabdab_summary_all.csv \
+  --structure-dir data/sabdab_all_structures \
+  --output data/calm_dataset_raw.csv
 ```
 
 产出:
@@ -81,30 +85,45 @@ calm prepare --split-csv data/splits_final/abag_split.csv --structure-dir data/s
 - `data/calm_dataset.csv` 过滤后的训练用数据集
 - `data/calm_dataset_raw.report.json` 逐级过滤统计
 
-本机实测的逐级统计:
+全量跑一次约 13 分钟 (按 PDB 分组, 每个 cif 只解析一次, 4,177 次结构解析)。本机实测的逐级统计:
 
-| 阶段 | 行数 |
-|---|---|
-| abag_split.csv 输入 | 15,641 |
-| 保留 holo 结构 | 13,902 |
-| 单链蛋白抗原 (agtypes == PROTEIN) | 3,698 |
-| 含抗体链且有可变区序列 | 3,698 |
-| 结构解析成功 | 3,541 |
-| 去重复 Ab-Ag 对后 | 2,068 |
-| 长度过滤后 (抗原 19-550 aa, 可变区 <=141 aa) | 1,999 |
+| 阶段 | 行数 | 对应论文表述 |
+|---|---|---|
+| `sabdab_summary_all.csv` 输入 | 22,149 | |
+| 有抗原链 | 19,802 | |
+| 单一抗原链 | 9,164 | "only a single antigen chain", 排除多链界面 |
+| 抗原类型为 protein | 7,312 | "antigen must be a protein" |
+| 至少一条抗体链 | 7,312 | 至少有 H 或 L |
+| 结构解析成功 | 7,216 | 96 行失败: 93 行无可变区, 3 行抗原链缺失 |
+| 去重复 Ab-Ag 对后 | 5,299 | "duplicate pairs dropped" |
+| 长度过滤后 (抗原 19-550 aa, 可变区 <=141 aa) | **4,326** | 论文 4,138 |
 
-最终 1,999 对 / 1,519 唯一抗体 / 1,332 唯一抗原; 其中 VH+VL 双链 1,512, 仅 VH 480, 仅 VL 7; 抗原长度 50-548 aa。
+最终 **4,326 对 / 3,049 唯一抗体 / 3,450 唯一抗原**; 其中 VH+VL 双链 3,032, 仅 VH 1,275, 仅 VL 19; 抗原长度 50-550 aa, VH 最长 140 aa, VL 最长 117 aa; epitope 掩码 4,326/4,326 全部与抗原序列等长, 平均 20.91 个表位残基。条目类型分布 FAB 2,097 / SD-H 1,140 / FV 1,073 / SD-L 16。
+
+有 13 行的 epitope 掩码全为 0 (结构里抗原与抗体在 5 A 内无接触)。这些行在 `mask_mode: interface` 的六个 regime 下由 `schema.validate(require_masks=True)` 自动剔除, 无需手工处理; 全长 regime 不受影响。
 
 ## 4. 与论文数据量的差异
 
-论文报告 4,941 条原始记录过滤后得到 4,138 对 (3,332 唯一抗体 / 3,467 唯一抗原)。本复现得到 1,999 对。差异来源已逐项定位:
+论文报告 4,941 条原始记录过滤后得到 4,138 对 (3,332 唯一抗体 / 3,467 唯一抗原)。本复现得到 4,326 对 (3,049 / 3,450)。
 
-- 数据源不同: 论文用较早的 SAbDab 快照, 用户下载的是 2026 年的 SAbDab2 ML release, 切分表结构与条目都不同
-- 去重是主因: 3,698 个选中行里只有 2,131 个唯一 (VH, VL, 抗原) 三元组, 去重直接砍掉 1,473 行。这与论文 "去除重复对" 的过滤规则一致, 只是这份 release 的冗余度更高
-- 139 个 `.cif` 文件在下载包中缺失 (占 3.8%), 例如 `pdb_00001bzq_N_+`、`pdb_00002itd_A_B`
-- 10 行 VH 序列无法在结构链中定位, 8 行抗原链缺失
+| 指标 | 论文 | 本复现 | 偏差 |
+|---|---|---|---|
+| Ab-Ag 对 | 4,138 | 4,326 | +4.5% |
+| 唯一抗体 | 3,332 | 3,049 | -8.5% |
+| 唯一抗原 | 3,467 | 3,450 | -0.5% |
+| VH+VL 双链 | 3,251 | 3,032 | -6.7% |
+| 仅 VH | 874 | 1,275 | +45.9% |
+| 仅 VL | 13 | 19 | +46.2% |
 
-结论: 管线本身没有异常丢样, 样本量差异来自数据 release 版本。绝对 Recall 数值因此不会与论文完全一致, 应重点比对趋势（40% < 60% < 80%, 掩码 > 全长, UC >> 同源性切分, RS 接近随机基线）。
+唯一抗原数几乎完全吻合 (-0.5%), 说明筛选口径与论文一致。剩余偏差来自数据快照版本:
+
+- 本地 SAbDab 快照是 2026-08, 比论文使用的快照更新, 新增条目里纳米抗体 (single-domain, SD-H) 占比明显更高, 所以 "仅 VH" 一栏偏高 401 条, 这也是总对数反超论文的主要原因
+- 唯一抗体数偏低而对数偏高, 说明这份快照里同一抗体对多个抗原的记录更多 (一对多), 与论文快照的冗余结构不同
+- 论文未公布 4,941 条原始记录的具体来源列表, 无法逐条比对
+
+结论: 管线口径与论文一致, 样本量差异来自 SAbDab 快照版本。绝对 Recall 数值因此不会与论文完全一致, 应重点比对趋势（40% < 60% < 80%, 掩码 > 全长, UC >> 同源性切分, RS 接近随机基线）。
+
+旧版本的 SAbDab2 ML release 路径 (`--split-csv data/splits_final/abag_split.csv`) 仍然保留在 `calm/prepare.py` 里, 但那份切分表只覆盖 8,641 个 PDB, 最终只能得到 2,052 对, 不建议再用。
 
 ## 5. 复现命令
 
@@ -218,7 +237,11 @@ checkpoint 选择。论文未指定。本仓库用验证集 Recall@10 选最优 
 
 聚类回退策略。mmseqs2 缺失时回退为 `Cluster_id` 列（来自数据集 agclusters）, 抗体侧回退为 VH/VL 精确序列匹配, 并在 cluster_notes 中写明 "identity backend cannot honour distinct split and subsample identity thresholds"。请务必安装 mmseqs2。
 
-泄漏审计。对每个聚类取最长序列作代表, 两两比对, 相似度 = 对齐区 percent identity 乘 alignment coverage; 超过阈值的簇对用并查集合并, 从而保证切分后跨折不存在高相似样本。代表数上限 3000, 超限则跳过并在 notes 中告警。本机实测在 40/60/80 三档只额外合并了 5/3/1 个簇对, 说明 mmseqs2 的聚类结果本身已经足够干净, 没有出现单链接链式坍缩。
+泄漏审计。mmseqs2 是启发式聚类, 可能把高度同源的序列分到不同簇。所以在 mmseqs2 之后再补一道兜底: 对每个聚类取最长序列作代表, 两两比对, 相似度 = 对齐区 percent identity 乘 alignment coverage; 超过阈值的簇对用并查集合并, 从而保证切分后跨折不存在高相似样本。代表数上限 3000, 超限则跳过并在 notes 中告警。
+
+这一步是 O(n^2), 在 4,326 对数据集上有 952 个抗原簇代表, 即 452,676 次比对, Biopython 后端下要跑约 40 分钟。因此加了一道精确剪枝: 相似度按定义等于 `matches / max(len_a, len_b)`, 而全局比对的 `matches <= min(len_a, len_b)`, 所以相似度上界就是 `min(len) / max(len)`。长度比例本身低于阈值的簇对不可能达标, 直接跳过。这个界是紧的, 结果与不剪枝完全一致。实测在 80/60/40 三档分别把比对数压到 97,316 / 142,533 / 158,811 次 (剩余 21.5% / 44.7% / 70.0%)。
+
+审计结果本身很干净: ag80 在 952 个代表里只额外合并 1 对, ag40 在 674 个代表里合并 1 对, uc90 在 1,049 个代表里合并 0 对。说明 mmseqs2 的聚类没有漏掉明显同源对, 也没有出现单链接链式坍缩。
 
 显存策略。encoder 全程冻结, 只训练两个 projection head。4090 用 batch 1024 + bf16 autocast + token_chunk 262144; 3060 用 batch 512 + token_chunk 65536。训练时对分块投影使用 `torch.utils.checkpoint(use_reentrant=False)` 压峰值显存, 仅在 CUDA 上启用。
 
@@ -228,8 +251,9 @@ decoder 初始化。`nn.Embedding` 默认 N(0,1) 加上输出层权重绑定会�
 
 ## 10. 已知偏差
 
-- 样本量 1,999 对 vs 论文 4,138 对, 原因见第 4 节
-- 数据源是 SAbDab2 2026 release, 不是论文使用的快照
+- 样本量 4,326 对 vs 论文 4,138 对, 原因见第 4 节
+- 数据源是 2026-08 的 SAbDab 官方快照, 不是论文使用的快照; 纳米抗体条目更多, 导致 "仅 VH" 样本偏高
+- UC 设置 (`cluster_on: antibody`) 下最大簇有 1,041 对 (占 31%)。原因是同一样本的 VH 与 VL 分别落在不同 mmseqs2 簇时会被并查集合并, 产生链式聚合。这是 cluster-aware 切分的固有性质, 论文的 UC 设置同样存在, 但会让 5 折的折间样本量不均衡
 - CDR 注释用 IMGT 而非 Chothia（不影响训练）
 - 泄漏审计默认走 Biopython 而非 parasail（相似度定义与比对参数一致）
 - decoder 只实现与自检, 不训练, 与论文一致
@@ -239,7 +263,8 @@ decoder 初始化。`nn.Embedding` 默认 N(0,1) 加上输出层权重绑定会�
 ```
 calm/
   cli.py      命令行入口 (prepare/embed/cluster/train/experiment/figures/decoder-check/info)
-  prepare.py      SAbDab2 结构文件到 CALM schema 的适配层, 5 A 界面标注
+  sabdab.py   SAbDab 官方全量快照到 CALM schema 的适配层 (主路径), AbNumber Chothia 编号, 5 A 界面标注
+  prepare.py      SAbDab2 ML release 切分表的旧适配层 (保留, 已不推荐)
   schema.py       列定义、过滤规则、数据校验
   embeddings.py   AntiBERTy / ESM-2 冻结 embedding 与 ragged memmap 缓存
   dataset.py      掩码 token 选取与 batch 组装

@@ -19,7 +19,7 @@ ANTIGEN_BLOCK = (
     "Cluster_id",
 )
 
-MAX_ALIGNMENT_REPRESENTATIVES = 3000
+MAX_ALIGNMENT_REPRESENTATIVES = 8000
 
 
 @dataclass
@@ -233,7 +233,12 @@ def merge_by_alignment(labels: list[str], sequences: list[str], threshold: float
             right = keys[second]
             if finder.find(left) == finder.find(right):
                 continue
-            score = alignment_similarity(representatives[left], representatives[right])
+            query = representatives[left]
+            target = representatives[right]
+            longer = max(len(query), len(target))
+            if longer == 0 or min(len(query), len(target)) < threshold * longer:
+                continue
+            score = alignment_similarity(query, target)
             if score >= threshold and finder.union(left, right, weights):
                 merged += 1
     notes.append(
