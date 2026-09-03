@@ -1,0 +1,49 @@
+name: pa_ep40
+label: Pa-Ep 40%
+folds: 5
+output_dir: artifacts/runs
+device: auto
+data:
+  dataset: data/calm_dataset.csv
+  embedding_dir: artifacts/embeddings
+  mask_mode: interface
+  cluster_on: antigen
+  min_seq_id: 0.4
+  subsample_min_seq_id: 0.8
+  max_per_cluster: 25
+  random_shuffle: false
+  parasail_merge: true
+  coverage: 0.4
+model:
+  hidden_dim: 1024
+  embed_dim: 512
+  dropout: 0.1
+  temperature: 0.2
+  learnable_temperature: true
+train:
+  epochs: 100
+  train_batch_size: 1024
+  eval_batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.2
+  scheduler_t0: 10
+  scheduler_t_mult: 2
+  scheduler_eta_min: 1.0e-06
+  grad_clip: 1.0
+  token_chunk: null
+  seed: 0
+embedding:
+  antibody_model: antiberty
+  antigen_model: esm2_t33_650M_UR50D
+  antibody_dim: 512
+  antigen_dim: 1280
+  max_variable_len: 141
+  max_antigen_len: 550
+  batch_size: 8
+evaluation:
+  pool_size: 256
+  test_pairs_per_fold: 512
+  ks:
+  - 1
+  - 5
+  - 10

@@ -1,0 +1,12 @@
+.venv/
+artifacts/
+data/splits_final/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.codegraph
+.codegraph/
+*.egg-info/
+build/
+dist/

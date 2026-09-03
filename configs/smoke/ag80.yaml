@@ -1,0 +1,49 @@
+name: ag80
+label: Ab-Ag 80% (smoke)
+folds: 5
+output_dir: artifacts/smoke/runs
+device: cpu
+data:
+  dataset: data/calm_dataset.csv
+  embedding_dir: artifacts/smoke/embeddings
+  mask_mode: none
+  cluster_on: antigen
+  min_seq_id: 0.8
+  subsample_min_seq_id: 0.8
+  max_per_cluster: 25
+  random_shuffle: false
+  parasail_merge: true
+  coverage: 0.4
+model:
+  hidden_dim: 128
+  embed_dim: 64
+  dropout: 0.1
+  temperature: 0.2
+  learnable_temperature: true
+train:
+  epochs: 30
+  train_batch_size: 64
+  eval_batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.2
+  scheduler_t0: 5
+  scheduler_t_mult: 2
+  scheduler_eta_min: 1.0e-06
+  grad_clip: 1.0
+  token_chunk: null
+  seed: 0
+embedding:
+  antibody_model: hashed
+  antigen_model: hashed
+  antibody_dim: 64
+  antigen_dim: 96
+  max_variable_len: 141
+  max_antigen_len: 550
+  batch_size: 8
+evaluation:
+  pool_size: 32
+  test_pairs_per_fold: 128
+  ks:
+  - 1
+  - 5
+  - 10

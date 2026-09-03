@@ -1,0 +1,26 @@
+{
+  "input_rows": 15641,
+  "after_holo": 13902,
+  "after_single_protein_antigen": 3698,
+  "after_antibody_chain": 3698,
+  "after_variable_sequence": 3698,
+  "status_missing_antigen_chain": 8,
+  "status_ok": 3541,
+  "status_parse_error:FileNotFoundError": 139,
+  "status_vh_not_aligned": 10,
+  "dropped_duplicate_pairs": 1473,
+  "output_rows": 2068,
+  "filter": {
+    "input_rows": 2068,
+    "dropped_non_binder": 0,
+    "dropped_duplicate_pairs": 0,
+    "dropped_no_antibody_chain": 0,
+    "dropped_antigen_length": 67,
+    "dropped_variable_length": 2,
+    "dropped_mask_mismatch": 0,
+    "output_rows": 1999,
+    "unique_antibodies": 1519,
+    "unique_antigens": 1332
+  },
+  "filtered_output": "data/calm_dataset.csv"
+}
