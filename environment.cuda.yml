@@ -1,3 +1,0 @@
-name: calm
-channels: [conda-forge, bioconda]
-dependencies: [python=3.11, pip, "mmseqs2>=15.6f452", anarci, hmmer, {pip: ["--extra-index-url https://download.pytorch.org/whl/cu124", "torch==2.5.1+cu124", "numpy>=1.24,<3", "pandas>=2.0", "scikit-learn>=1.3", "scipy>=1.10", "matplotlib>=3.7", "pyyaml>=6.0", "tqdm>=4.65", "biopython>=1.81", "transformers==4.49.0", "fair-esm==2.0.0", "antiberty==0.1.3", "abnumber>=0.3.2", "parasail>=1.3.4"]}]

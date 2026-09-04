@@ -1,4 +1,5 @@
 .venv/
+.tools/
 artifacts/
 data/splits_final/
 data/sabdab_all_structures/

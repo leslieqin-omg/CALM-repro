@@ -23,34 +23,57 @@ DOI: 10.64898/2026.02.25.707916
 
 - decoder 的正式训练与生成质量评测
 
-## 2. 环境安装
+## 2. 环境安装 (uv 一键)
 
-服务器 (RTX 3060 + RTX 4090, CUDA):
-
-```bash
-conda env create -f environment.cuda.yml
-conda activate calm
-pip install -e .
-```
-
-environment.cuda.yml 固定 python=3.11 并从 bioconda 装 mmseqs2 / anarci / hmmer, pip 段装 torch==2.5.1+cu124。cu124 轮子同时覆盖 RTX 3060 (sm_86) 与 RTX 4090 (sm_89)。
-
-若只想用 pip:
+服务器上只需要两条命令:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-cuda.txt
-pip install -e .
+cd CALM-repro
+bash scripts/setup_server.sh
 ```
 
-纯 pip 路线要额外装 HMMER 系统二进制 (ANARCI 依赖 `hmmscan`), pip 装不了:
+脚本做的事情, 按顺序:
+
+1. 没有 uv 就用官方安装脚本装到 `~/.local/bin`
+2. `uv python install 3.11` + `uv sync --extra preprocess`, 按 `uv.lock` 在 `./.venv` 里装齐全部 Python 依赖（含 torch 2.5.1+cu124）
+3. 尽力装 parasail, 装不上就退回 Biopython 比对后端并打印一行提示
+4. 打印 `nvidia-smi` 里每张卡的型号 / 显存 / 驱动
+5. 下载 mmseqs2 官方静态包到 `.tools/mmseqs`（按 `/proc/cpuinfo` 自动选 avx2 或 sse41）, 软链到 `.tools/bin`
+6. 装 HMMER: 有 `sudo` 就走 `apt-get install hmmer`, 否则下载 hmmer 3.4 源码编译到 `.tools/hmmer`; 没有 C 工具链就跳过并告警
+7. 跑 `scripts/check_env.py` 与 `calm info` 自检, 逐项打印 python / torch / cuda / 每张卡的 compute capability / mmseqs / hmmscan / 各依赖包
+
+装完之后进入环境:
 
 ```bash
-sudo apt install hmmer        # Debian / Ubuntu
-conda install -c bioconda hmmer   # 或者用 conda
+source scripts/env.sh
+calm info
 ```
 
-三个依赖的注意事项:
+`scripts/env.sh` 把 `.venv/bin` 和 `.tools/bin` 加进 PATH, 并设置 `MPLCONFIGDIR`（否则 matplotlib 在无 HOME 写权限时会告警）。也可以不激活, 全程用 `uv run`:
+
+```bash
+uv run calm experiment --config configs/rtx4090/ag80.yaml
+```
+
+### 显卡适配
+
+锁定的是 `torch==2.5.1+cu124`, 来自 `pyproject.toml` 里声明的 explicit 索引:
+
+```toml
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu124", marker = "sys_platform == 'linux'" }]
+```
+
+cu124 轮子内置 sm_86 与 sm_89 两种 kernel, 分别对应 RTX 3060 与 RTX 4090, 两张卡都不需要额外编译。CUDA 运行时是向后兼容的, 目标机 `NVIDIA-SMI 595.84 / CUDA 13.2` 的驱动能直接跑 cu124 轮子。marker 限定 `sys_platform == 'linux'`, 所以在 macOS 上开发时会自动回落到 PyPI 的 CPU / MPS 版 torch, 同一个 `uv.lock` 两边都能用。
+
+跑实验时用现成的两套配置选卡: `configs/rtx4090/`（`cuda:1`, batch 1024, bf16 autocast）与 `configs/rtx3060/`（`cuda:0`, batch 512）。
+
+### 需要说明的三个依赖
 
 - mmseqs2 必须安装。缺失时聚类会退化到精确序列匹配, 40/60/80 三档阈值会给出完全相同的结果, 论文的核心分层实验就失效了。程序会在 cluster_notes 里明确报警。
 - ANARCI + AbNumber + HMMER 只在 `calm prepare` 阶段需要, 用于按 Chothia 编号从结构链里切出 VH/VL 可变区。如果直接用仓库里已生成的 `data/calm_dataset.csv`, 这三个可以不装。
@@ -282,7 +305,13 @@ configs/          10 个 regime 的基线配置
 configs/rtx3060/  RTX 3060 12 GB 适配 (cuda:0, batch 512)
 configs/rtx4090/  RTX 4090 24 GB 适配 (cuda:1, batch 1024)
 configs/smoke/    CPU 冒烟配置 (hashed encoder, 缩减超参, 用于快速验证管线)
-tools/ 配置生成器与 PDF 素材提取脚本
+scripts/
+  setup_server.sh 服务器一键环境安装 (uv + mmseqs2 + HMMER + 自检)
+  env.sh          激活脚本 (PATH / VIRTUAL_ENV / MPLCONFIGDIR)
+  check_env.py    环境自检 (python / torch / cuda / 每张卡 compute capability / 外部二进制 / 依赖包)
+tools/            配置生成器与 PDF 素材提取脚本
+pyproject.toml    依赖声明与 torch cu124 explicit 索引
+uv.lock           锁定的依赖版本 (linux x86_64 与 darwin arm64 两套 marker)
 ```
 
 ## 12. 快速验证

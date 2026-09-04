@@ -191,6 +191,17 @@ def encode_to_store(
     return Path(root)
 
 
+def _covers(root: Path, sequences: Sequence[str]) -> bool:
+    if not (root / INDEX_FILE).exists():
+        return False
+    store = RaggedEmbeddingStore(root)
+    missing = sum(1 for sequence in set(sequences) if not store.has(sequence))
+    if missing:
+        print(f"[embed] {root.name}: stale cache, {missing} sequences missing, re-encoding", flush=True)
+        return False
+    return True
+
+
 def embed_dataset(
     frame,
     config: EmbeddingConfig,
@@ -203,11 +214,11 @@ def embed_dataset(
     antigen_root = root / "antigen"
     chains = schema.unique_antibody_chains(frame)
     antigens = schema.unique_antigens(frame)
-    if overwrite or not (antibody_root / INDEX_FILE).exists():
+    if overwrite or not _covers(antibody_root, chains):
         encoder = build_encoder(config.antibody_model, spec.device, config.antibody_dim, "antibody")
         dim = int(getattr(encoder, "dim", config.antibody_dim))
         encode_to_store(chains, encoder, antibody_root, dim, config.antibody_model, config.batch_size)
-    if overwrite or not (antigen_root / INDEX_FILE).exists():
+    if overwrite or not _covers(antigen_root, antigens):
         encoder = build_encoder(config.antigen_model, spec.device, config.antigen_dim, "antigen")
         dim = int(getattr(encoder, "dim", config.antigen_dim))
         encode_to_store(antigens, encoder, antigen_root, dim, config.antigen_model, config.batch_size)

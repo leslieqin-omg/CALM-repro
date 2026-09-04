@@ -1,0 +1,6 @@
+CALM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+export PATH="$CALM_ROOT/.tools/bin:$CALM_ROOT/.venv/bin:$HOME/.local/bin:$PATH"
+export VIRTUAL_ENV="$CALM_ROOT/.venv"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$CALM_ROOT/.tools/mpl}"
+export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
+mkdir -p "$MPLCONFIGDIR"
