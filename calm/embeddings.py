@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import warnings
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -124,12 +126,44 @@ class AntiBERTyEncoder:
         return outputs
 
 
+ESM_REGRESSION_WARNING = "Regression weights not found"
+
+
+def _esm_checkpoint_candidates(model_name: str) -> list[Path]:
+    candidates: list[Path] = []
+    override = os.environ.get("CALM_ESM_WEIGHTS", "").strip()
+    if override:
+        path = Path(override).expanduser()
+        candidates.append(path / f"{model_name}.pt" if path.is_dir() else path)
+    hub_root = os.environ.get("TORCH_HOME", "").strip()
+    if hub_root:
+        candidates.append(Path(hub_root).expanduser() / "hub" / "checkpoints" / f"{model_name}.pt")
+    candidates.append(Path(torch.hub.get_dir()) / "checkpoints" / f"{model_name}.pt")
+    candidates.append(Path.home() / ".cache" / "torch" / "hub" / "checkpoints" / f"{model_name}.pt")
+    return candidates
+
+
+def _load_esm_model(model_name: str):
+    import esm
+
+    checkpoint = next((item for item in _esm_checkpoint_candidates(model_name) if item.is_file()), None)
+    if checkpoint is None:
+        print(f"[embed] {model_name}: no local checkpoint found, downloading from torch hub", flush=True)
+        return getattr(esm.pretrained, model_name)()
+    print(f"[embed] {model_name}: loading local checkpoint {checkpoint}", flush=True)
+    model_data = torch.load(str(checkpoint), map_location="cpu", weights_only=False)
+    regression_path = checkpoint.with_name(f"{checkpoint.stem}-contact-regression.pt")
+    regression_data = None
+    if regression_path.is_file():
+        regression_data = torch.load(str(regression_path), map_location="cpu", weights_only=False)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=ESM_REGRESSION_WARNING)
+        return esm.pretrained.load_model_and_alphabet_core(model_name, model_data, regression_data)
+
+
 class Esm2Encoder:
     def __init__(self, device: torch.device, model_name: str) -> None:
-        import esm
-
-        loader = getattr(esm.pretrained, model_name)
-        model, alphabet = loader()
+        model, alphabet = _load_esm_model(model_name)
         self.model = model.eval().to(device)
         self.batch_converter = alphabet.get_batch_converter()
         self.repr_layer = int(model.num_layers)

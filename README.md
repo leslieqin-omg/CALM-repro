@@ -87,6 +87,39 @@ calm info
 
 输出会报告 device、mmseqs2 是否可用、以及当前的 alignment backend。
 
+### 离线准备 ESM-2 权重
+
+抗原编码器 `esm2_t33_650M_UR50D` 的权重约 2.4 GB。`calm embed` 会按下面的顺序找本地权重, 命中就不联网:
+
+1. `CALM_ESM_WEIGHTS` 指向的文件, 或指向的目录下的 `<model_name>.pt`
+2. `$TORCH_HOME/hub/checkpoints/<model_name>.pt`
+3. `torch.hub.get_dir()/checkpoints/<model_name>.pt`
+4. `~/.cache/torch/hub/checkpoints/<model_name>.pt`
+
+所以在有网的机器上把权重下好、拷到服务器的任一位置即可:
+
+```bash
+mkdir -p ~/.cache/torch/hub/checkpoints
+wget -c -P ~/.cache/torch/hub/checkpoints/ \
+https://dl.fbaipublicfiles.com/fair-esm/models/esm2_t33_650M_UR50D.pt
+```
+
+或者放到别的盘, 用环境变量指过去:
+
+```bash
+export CALM_ESM_WEIGHTS=/snode1/data_hub1/qinhaifeng/esm_weights
+```
+
+`fair-esm` 原生的 hub 加载还会额外强制拉一个 `esm2_t33_650M_UR50D-contact-regression.pt`（contact 预测头, 几十 KB）。CALM 只取 `representations`, 从不算 contact map, 所以本地加载路径在这个文件缺失时会直接跳过它, 不需要额外下载。放了也能用。
+
+启动时会打印实际使用的权重路径:
+
+```
+[embed] esm2_t33_650M_UR50D: loading local checkpoint /home/qinhaifeng/.cache/torch/hub/checkpoints/esm2_t33_650M_UR50D.pt
+```
+
+如果打印的是 `no local checkpoint found, downloading from torch hub`, 说明四个位置都没命中, 优先检查文件名是否逐字符一致。AntiBERTy 的权重随 pip 包一起装, 不需要单独准备。
+
 ## 3. 数据
 
 论文的数据起点是 SAbDab 官方全量快照。请从 SAbDab 下载 "All structures" 归档并解压到 `data/sabdab_all_structures/`, 目录里需要包含:
