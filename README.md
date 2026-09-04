@@ -302,8 +302,8 @@ calm/
   figures.py    Table 2-4 与 Figure 3/4 渲染
   decoder.py      自回归 cross-attention decoder 与 task-prefix tokenizer
 configs/          10 个 regime 的基线配置
-configs/rtx3060/  RTX 3060 12 GB 适配 (cuda:0, batch 512)
-configs/rtx4090/  RTX 4090 24 GB 适配 (cuda:1, batch 1024)
+configs/rtx3060/  RTX 3060 12 GB 适配 (cuda:1, batch 512)
+configs/rtx4090/  RTX 4090 24 GB 适配 (cuda:0, batch 1024)
 configs/smoke/    CPU 冒烟配置 (hashed encoder, 缩减超参, 用于快速验证管线)
 scripts/
   setup_server.sh 服务器一键环境安装 (uv + mmseqs2 + HMMER + 自检)

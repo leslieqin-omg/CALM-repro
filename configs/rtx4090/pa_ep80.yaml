@@ -2,7 +2,7 @@ name: pa_ep80
 label: Pa-Ep 80%
 folds: 5
 output_dir: artifacts/runs
-device: cuda:1
+device: cuda:0
 data:
   dataset: data/calm_dataset.csv
   embedding_dir: artifacts/embeddings

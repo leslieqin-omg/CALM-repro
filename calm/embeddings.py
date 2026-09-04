@@ -109,7 +109,9 @@ class AntiBERTyEncoder:
     def __init__(self, device: torch.device) -> None:
         from antiberty import AntiBERTyRunner
 
-        self.runner = AntiBERTyRunner(device=device)
+        self.runner = AntiBERTyRunner()
+        self.runner.device = device
+        self.runner.model = self.runner.model.to(device)
         self.dim = 512
 
     def encode(self, sequences: Sequence[str]) -> list[np.ndarray]:

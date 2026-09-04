@@ -2,7 +2,7 @@ name: rs_masked
 label: Pa-Ep RS
 folds: 5
 output_dir: artifacts/runs
-device: cuda:0
+device: cuda:1
 data:
   dataset: data/calm_dataset.csv
   embedding_dir: artifacts/embeddings
