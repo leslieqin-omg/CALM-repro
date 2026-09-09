@@ -7,7 +7,10 @@ from pathlib import Path
 
 from . import schema
 from .config import ExperimentConfig, apply_overrides, from_dict, load_config
-from .version import PAPER_DOI, PAPER_TITLE, __version__
+
+from . import __version__
+from . import PAPER_DOI
+from . import PAPER_TITLE
 
 
 def _parse_value(raw: str):
