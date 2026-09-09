@@ -16,6 +16,11 @@ die() { printf '[calm-setup] ERROR %s\n' "$*" >&2; exit 1; }
 mkdir -p "$TOOLS_BIN"
 export PATH="$TOOLS_BIN:$HOME/.local/bin:$PATH"
 
+# ~3 GB of CUDA wheels overrun uv's 30s default timeout on throttled links.
+export UV_HTTP_TIMEOUT="${UV_HTTP_TIMEOUT:-600}"
+export UV_CONCURRENT_DOWNLOADS="${UV_CONCURRENT_DOWNLOADS:-2}"
+SYNC_RETRIES="${CALM_SYNC_RETRIES:-5}"
+
 install_uv() {
   if command -v uv >/dev/null 2>&1; then
     log "uv found: $(command -v uv) ($(uv --version))"
@@ -32,7 +37,16 @@ install_uv() {
 sync_python_env() {
   log "resolving python 3.11 + torch cu124 environment (this downloads ~3 GB on first run)"
   uv python install 3.11
-  uv sync --extra preprocess
+  log "UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}s, up to ${SYNC_RETRIES} attempts (partial downloads resume between attempts)"
+  local attempt=1
+  until uv sync --extra preprocess; do
+    if [ "$attempt" -ge "$SYNC_RETRIES" ]; then
+      die "uv sync failed after ${SYNC_RETRIES} attempts; re-run 'bash scripts/setup_server.sh' or raise UV_HTTP_TIMEOUT / CALM_SYNC_RETRIES"
+    fi
+    warn "uv sync attempt ${attempt} failed (likely a network timeout), retrying in 5s ($((attempt + 1))/${SYNC_RETRIES})"
+    attempt=$((attempt + 1))
+    sleep 5
+  done
   log "virtualenv ready at $REPO_ROOT/.venv"
   if uv pip install "parasail>=1.3.4" >/dev/null 2>&1; then
     log "parasail installed (fast leak-audit alignment backend)"
