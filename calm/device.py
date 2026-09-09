@@ -83,6 +83,12 @@ def suggest_batch_size(spec: DeviceSpec, requested: int) -> int:
     return requested
 
 
+def needs_checkpoint(spec: DeviceSpec) -> bool:
+    if not spec.is_cuda:
+        return False
+    return spec.total_memory_gb < 16.0
+
+
 def suggest_token_chunk(spec: DeviceSpec, requested: int | None) -> int:
     if requested is not None and requested > 0:
         return requested

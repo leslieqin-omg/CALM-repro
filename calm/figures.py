@@ -240,8 +240,19 @@ def uc_figure(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
     return path
 
 
-def build_all(runs_dir, output_dir, ks=(1, 5, 10)) -> list:
+def build_all(runs_dir, output_dir, ks: tuple[int, ...] | None = None) -> list:
     runs = load_runs(runs_dir)
+    if ks is None:
+        found_ks = set()
+        for run in runs.values():
+            for d in ("mean", "ab_to_ag", "ag_to_ab"):
+                summary_d = (run.get("summary") or {}).get(d) or {}
+                for k_str in summary_d.keys():
+                    try:
+                        found_ks.add(int(k_str))
+                    except ValueError:
+                        pass
+        ks = tuple(sorted(found_ks)) if found_ks else (1, 5, 10, 50, 100)
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     written = list()

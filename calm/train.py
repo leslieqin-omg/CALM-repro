@@ -8,7 +8,7 @@ from torch.utils.data import Subset
 
 from calm.config import EvalConfig, ModelConfig, TrainConfig
 from calm.dataset import PairDataset, make_loader
-from calm.device import DeviceSpec, suggest_batch_size, suggest_token_chunk
+from calm.device import DeviceSpec, needs_checkpoint, suggest_batch_size, suggest_token_chunk
 from calm.evaluate import evaluate_indices, move_batch
 from calm.losses import symmetric_multi_positive_loss
 from calm.model import CALM
@@ -49,11 +49,19 @@ def train_fold(
 ) -> tuple[CALM, FoldOutcome]:
     torch.manual_seed(int(train_config.seed) + int(split.fold))
     model = CALM(model_config, dataset.antibody_dim, dataset.antigen_dim).to(spec.device)
-    model.configure_runtime(suggest_token_chunk(spec, train_config.token_chunk), spec.is_cuda)
+    model.configure_runtime(suggest_token_chunk(spec, train_config.token_chunk), needs_checkpoint(spec))
     batch_size = suggest_batch_size(spec, int(train_config.train_batch_size))
     generator = torch.Generator()
     generator.manual_seed(int(train_config.seed) + int(split.fold))
-    loader = make_loader(Subset(dataset, list(split.train)), batch_size, True, False, generator)
+    loader = make_loader(
+        Subset(dataset, list(split.train)),
+        batch_size,
+        True,
+        False,
+        generator,
+        int(train_config.num_workers),
+        spec.is_cuda,
+    )
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(train_config.learning_rate),
@@ -67,7 +75,7 @@ def train_fold(
     )
     use_scaler = spec.amp_dtype == torch.float16
     scaler = torch.amp.GradScaler(spec.device.type, enabled=use_scaler)
-    target_k = max(int(k) for k in eval_config.ks)
+    target_k = 10 if 10 in eval_config.ks else max(int(k) for k in eval_config.ks)
     best_state = snapshot(model)
     best_value = -1.0
     best_epoch = -1

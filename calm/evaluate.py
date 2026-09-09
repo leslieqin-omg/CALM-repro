@@ -9,7 +9,7 @@ from calm.metrics import retrieval_metrics
 
 
 def move_batch(batch: dict, device: torch.device) -> dict:
-    return {key: value.to(device) for key, value in batch.items()}
+    return {key: value.to(device, non_blocking=True) for key, value in batch.items()}
 
 
 def build_pools(indices, pool_size: int, max_pairs: int, rng) -> list[np.ndarray]:

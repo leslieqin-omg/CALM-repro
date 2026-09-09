@@ -148,7 +148,8 @@ def cmd_train(args) -> int:
 def cmd_figures(args) -> int:
     from calm.figures import build_all
 
-    outputs = build_all(args.runs, args.output)
+    ks = tuple(args.ks) if getattr(args, "ks", None) else None
+    outputs = build_all(args.runs, args.output, ks=ks)
     for item in outputs:
         print(f"[figures] {item}")
     return 0
@@ -269,6 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     figures = sub.add_parser("figures", help="render Figure 3 and Tables 2-4 from finished runs")
     figures.add_argument("--runs", default="artifacts/runs")
     figures.add_argument("--output", default="artifacts/report")
+    figures.add_argument("--ks", nargs="+", type=int, default=None, help="override ks list to plot/tabulate")
     figures.set_defaults(func=cmd_figures)
 
     decoder = sub.add_parser("decoder-check", help="drive the generative decoder module")

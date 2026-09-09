@@ -41,6 +41,7 @@ class TrainConfig:
     grad_clip: float = 1.0
     token_chunk: int | None = None
     seed: int = 0
+    num_workers: int = 4
 
 
 @dataclass
@@ -61,10 +62,21 @@ class DataConfig:
 class EvalConfig:
     pool_size: int = 256
     test_pairs_per_fold: int = 512
-    ks: tuple[int, ...] = (1, 5, 10)
+    ks: tuple[int, ...] = (1, 5, 10, 50, 100)
 
     def __post_init__(self) -> None:
-        self.ks = tuple(int(k) for k in self.ks)
+        if isinstance(self.ks, str):
+            import ast
+            try:
+                parsed = ast.literal_eval(self.ks)
+                if isinstance(parsed, (list, tuple)):
+                    self.ks = tuple(int(k) for k in parsed)
+                else:
+                    self.ks = (int(parsed),)
+            except Exception:
+                self.ks = tuple(int(k.strip()) for k in self.ks.strip("[]()").split(",") if k.strip())
+        else:
+            self.ks = tuple(int(k) for k in self.ks)
 
 
 @dataclass
@@ -86,7 +98,9 @@ class ExperimentConfig:
 
 def _sub(cls, payload: dict[str, Any], key: str):
     section = payload.get(key) or {}
-    return cls(**section)
+    field_names = {f.name for f in dataclasses.fields(cls)}
+    filtered = {k: v for k, v in section.items() if k in field_names}
+    return cls(**filtered)
 
 
 def from_dict(payload: dict[str, Any]) -> ExperimentConfig:

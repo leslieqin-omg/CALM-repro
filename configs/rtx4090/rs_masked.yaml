@@ -32,6 +32,7 @@ train:
   grad_clip: 1.0
   token_chunk: 262144
   seed: 0
+  num_workers: 8
 embedding:
   antibody_model: antiberty
   antigen_model: esm2_t33_650M_UR50D
@@ -47,3 +48,5 @@ evaluation:
   - 1
   - 5
   - 10
+  - 50
+  - 100

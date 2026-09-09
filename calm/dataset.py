@@ -157,13 +157,26 @@ def make_loader(
     shuffle: bool,
     drop_last: bool = False,
     generator: torch.Generator | None = None,
+    num_workers: int = 0,
+    pin_memory: bool = False,
 ) -> DataLoader:
-    return DataLoader(
-        dataset,
+    workers = max(0, int(num_workers))
+    options: dict[str, object] = dict(
         batch_size=batch_size,
         shuffle=shuffle,
         drop_last=drop_last,
         collate_fn=collate,
-        num_workers=0,
+        num_workers=workers,
+        pin_memory=bool(pin_memory),
         generator=generator,
     )
+    if workers > 0:
+        options["persistent_workers"] = True
+        options["prefetch_factor"] = 4
+    try:
+        return DataLoader(dataset, **options)
+    except (OSError, RuntimeError, PermissionError):
+        options["num_workers"] = 0
+        options.pop("persistent_workers", None)
+        options.pop("prefetch_factor", None)
+        return DataLoader(dataset, **options)

@@ -32,6 +32,7 @@ train:
   grad_clip: 1.0
   token_chunk: null
   seed: 0
+  num_workers: 4
 embedding:
   antibody_model: hashed
   antigen_model: hashed
@@ -47,3 +48,5 @@ evaluation:
   - 1
   - 5
   - 10
+  - 50
+  - 100
