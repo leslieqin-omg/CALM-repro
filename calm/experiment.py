@@ -4,13 +4,13 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from calm import clustering, schema, splits
-from calm.config import ExperimentConfig, save_config
-from calm.dataset import PairDataset, build_records
-from calm.device import describe, resolve_device, set_seed
-from calm.embeddings import embed_dataset, load_stores
-from calm.metrics import mean_and_ci, random_baseline
-from calm.train import train_fold
+from . import clustering, schema, splits
+from .config import ExperimentConfig, save_config
+from .dataset import PairDataset, build_records
+from .device import describe, resolve_device, set_seed
+from .embeddings import embed_dataset, load_stores
+from .metrics import mean_and_ci, random_baseline
+from .train import train_fold
 
 
 def ensure_embeddings(config: ExperimentConfig, spec, log=print, overwrite: bool = False) -> dict:

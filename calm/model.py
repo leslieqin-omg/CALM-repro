@@ -7,7 +7,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
-from calm.config import ModelConfig
+from .config import ModelConfig
 
 
 class ProjectionHead(nn.Module):

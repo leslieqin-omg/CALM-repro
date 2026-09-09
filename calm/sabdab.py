@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from calm.prepare import (
+from .prepare import (
     CONTACT_CUTOFF,
     EXTRA_COLUMNS,
     _flags_to_mask,
@@ -16,7 +16,7 @@ from calm.prepare import (
     records_sequence,
     structure_roots,
 )
-from calm.schema import SCHEMA_COLUMNS, pair_hash
+from .schema import SCHEMA_COLUMNS, pair_hash
 
 LIGHT_TYPES = ("K", "L")
 

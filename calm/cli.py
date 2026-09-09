@@ -5,9 +5,9 @@ import json
 import sys
 from pathlib import Path
 
-from calm import schema
-from calm.config import ExperimentConfig, apply_overrides, from_dict, load_config
-from calm.version import PAPER_DOI, PAPER_TITLE, __version__
+from . import schema
+from .config import ExperimentConfig, apply_overrides, from_dict, load_config
+from .version import PAPER_DOI, PAPER_TITLE, __version__
 
 
 def _parse_value(raw: str):
@@ -66,11 +66,11 @@ def _resolve_config(args) -> ExperimentConfig:
 def cmd_prepare(args) -> int:
     roots = args.structure_dir or ["data/splits_final"]
     if args.summary_csv:
-        from calm.sabdab import prepare_from_summary
+        from .sabdab import prepare_from_summary
 
         table, report = prepare_from_summary(args.summary_csv, roots, args.output, limit=args.limit)
     else:
-        from calm.prepare import prepare_dataset
+        from .prepare import prepare_dataset
 
         table, report = prepare_dataset(
             args.split_csv,
@@ -95,8 +95,8 @@ def cmd_prepare(args) -> int:
 
 
 def cmd_embed(args) -> int:
-    from calm.device import describe, resolve_device
-    from calm.experiment import ensure_embeddings
+    from .device import describe, resolve_device
+    from .experiment import ensure_embeddings
 
     config = _resolve_config(args)
     spec = resolve_device(config.device)
@@ -106,7 +106,7 @@ def cmd_embed(args) -> int:
 
 
 def cmd_cluster(args) -> int:
-    from calm.experiment import prepare_frame
+    from .experiment import prepare_frame
 
     config = _resolve_config(args)
     workdir = Path(config.output_dir) / config.name / "cluster"
@@ -130,7 +130,7 @@ def cmd_cluster(args) -> int:
 
 
 def cmd_experiment(args) -> int:
-    from calm.experiment import run_experiment
+    from .experiment import run_experiment
 
     config = _resolve_config(args)
     result = run_experiment(config, print)
@@ -146,7 +146,7 @@ def cmd_train(args) -> int:
 
 
 def cmd_figures(args) -> int:
-    from calm.figures import build_all
+    from .figures import build_all
 
     ks = tuple(args.ks) if getattr(args, "ks", None) else None
     outputs = build_all(args.runs, args.output, ks=ks)
@@ -158,7 +158,7 @@ def cmd_figures(args) -> int:
 def cmd_decoder_check(args) -> int:
     import torch
 
-    from calm.decoder import TASKS, CalmDecoder, DecoderConfig, SequenceTokenizer, teacher_forcing
+    from .decoder import TASKS, CalmDecoder, DecoderConfig, SequenceTokenizer, teacher_forcing
 
     device = torch.device("cpu")
     tokenizer = SequenceTokenizer()
@@ -213,8 +213,8 @@ def cmd_decoder_check(args) -> int:
 
 
 def cmd_info(args) -> int:
-    from calm.clustering import alignment_backend, mmseqs_available
-    from calm.device import describe, resolve_device
+    from .clustering import alignment_backend, mmseqs_available
+    from .device import describe, resolve_device
 
     spec = resolve_device(getattr(args, "device", None) or "auto")
     print(f"calm-repro {__version__}")

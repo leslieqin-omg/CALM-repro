@@ -10,9 +10,9 @@ from typing import Iterable, Sequence
 import numpy as np
 import torch
 
-from calm import schema
-from calm.config import EmbeddingConfig
-from calm.device import DeviceSpec
+from . import schema
+from .config import EmbeddingConfig
+from .device import DeviceSpec
 
 TOKENS_FILE = "tokens.f16"
 INDEX_FILE = "index.json"

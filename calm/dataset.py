@@ -8,8 +8,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from calm import schema
-from calm.embeddings import RaggedEmbeddingStore
+from . import schema
+from .embeddings import RaggedEmbeddingStore
 
 MASK_MODES = ("none", "interface")
 

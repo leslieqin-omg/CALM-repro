@@ -3,9 +3,9 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from calm.dataset import collate
-from calm.device import DeviceSpec
-from calm.metrics import retrieval_metrics
+from .dataset import collate
+from .device import DeviceSpec
+from .metrics import retrieval_metrics
 
 
 def move_batch(batch: dict, device: torch.device) -> dict:

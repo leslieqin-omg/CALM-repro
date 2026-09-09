@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from calm.schema import SCHEMA_COLUMNS, pair_hash
+from .schema import SCHEMA_COLUMNS, pair_hash
 
 CONTACT_CUTOFF = 5.0
 

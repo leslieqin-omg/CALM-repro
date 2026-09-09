@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 import torch
 from torch.utils.data import Subset
 
-from calm.config import EvalConfig, ModelConfig, TrainConfig
-from calm.dataset import PairDataset, make_loader
-from calm.device import DeviceSpec, needs_checkpoint, suggest_batch_size, suggest_token_chunk
-from calm.evaluate import evaluate_indices, move_batch
-from calm.losses import symmetric_multi_positive_loss
-from calm.model import CALM
+from .config import EvalConfig, ModelConfig, TrainConfig
+from .dataset import PairDataset, make_loader
+from .device import DeviceSpec, needs_checkpoint, suggest_batch_size, suggest_token_chunk
+from .evaluate import evaluate_indices, move_batch
+from .losses import symmetric_multi_positive_loss
+from .model import CALM
 
 
 @dataclass

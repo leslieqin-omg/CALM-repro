@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from calm.schema import pair_hash
+from .schema import pair_hash
 
 ANTIGEN_BLOCK = (
     "Antigen_ID",
