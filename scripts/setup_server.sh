@@ -39,7 +39,11 @@ sync_python_env() {
   uv python install 3.11
   log "UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}s, up to ${SYNC_RETRIES} attempts (partial downloads resume between attempts)"
   local attempt=1
-  until uv sync --extra preprocess; do
+  # --reinstall-package forces the editable install (and its generated finder) to be
+  # rebuilt from the sources as they are right now. A finder built while calm/__init__.py
+  # was missing bakes in NAMESPACES={'calm': []} and keeps calm a namespace package
+  # forever, even after the file is restored.
+  until uv sync --extra preprocess --reinstall-package calm-repro; do
     if [ "$attempt" -ge "$SYNC_RETRIES" ]; then
       die "uv sync failed after ${SYNC_RETRIES} attempts; re-run 'bash scripts/setup_server.sh' or raise UV_HTTP_TIMEOUT / CALM_SYNC_RETRIES"
     fi
@@ -138,11 +142,10 @@ report_gpus() {
 }
 
 check_sources() {
-  # A partial or stale checkout leaves calm/__init__.py missing, which makes Python
-  # treat calm as a namespace package and every submodule import fails.
+  # Must run before uv sync: the editable install snapshots the package layout.
   local missing=() path
   for path in calm/__init__.py calm/schema.py calm/cli.py; do
-    [ -f "$path" ] || missing+=("$path")
+    [ -s "$path" ] || missing+=("$path")
   done
   if [ "${#missing[@]}" -eq 0 ]; then
     return 0
@@ -163,6 +166,7 @@ verify() {
 }
 
 install_uv
+check_sources
 sync_python_env
 report_gpus
 install_mmseqs || warn "mmseqs2 missing: clustering will degrade to exact sequence identity and the 40/60/80 regimes become identical"
@@ -171,7 +175,6 @@ if [ "$SKIP_PREPARE_TOOLS" = "1" ]; then
 else
   install_hmmer || true
 fi
-check_sources
 verify
 
 log "done. activate with:  source scripts/env.sh"

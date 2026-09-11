@@ -10,7 +10,8 @@ def check_package() -> bool:
         return False
     if calm.__file__ is None:
         print(f"calm          NAMESPACE PACKAGE at {list(calm.__path__)}")
-        print("calm           repair with: git checkout -- calm/__init__.py")
+        print("calm          the editable install was built without calm/__init__.py;")
+        print("calm          repair with: git checkout -- calm && uv sync --reinstall-package calm-repro")
         return False
     print(f"calm          {calm.__version__} from {calm.__file__}")
     try:
