@@ -137,6 +137,25 @@ report_gpus() {
   fi
 }
 
+check_sources() {
+  # A partial or stale checkout leaves calm/__init__.py missing, which makes Python
+  # treat calm as a namespace package and every submodule import fails.
+  local missing=() path
+  for path in calm/__init__.py calm/schema.py calm/cli.py; do
+    [ -f "$path" ] || missing+=("$path")
+  done
+  if [ "${#missing[@]}" -eq 0 ]; then
+    return 0
+  fi
+  warn "missing source files: ${missing[*]}"
+  command -v git >/dev/null 2>&1 || die "git is required to restore $REPO_ROOT/calm"
+  if git -C "$REPO_ROOT" restore --source=HEAD -- calm; then
+    log "restored calm/ from HEAD"
+  else
+    die "could not restore calm/ from git; run: git -C $REPO_ROOT checkout -- calm"
+  fi
+}
+
 verify() {
   log "verifying installation"
   uv run python scripts/check_env.py
@@ -152,6 +171,7 @@ if [ "$SKIP_PREPARE_TOOLS" = "1" ]; then
 else
   install_hmmer || true
 fi
+check_sources
 verify
 
 log "done. activate with:  source scripts/env.sh"
