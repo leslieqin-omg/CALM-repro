@@ -127,6 +127,8 @@ def figure3(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
         labels = list()
         drawn = 0
         baseline_value = None
+        max_y = 0.0
+        bar_annotations = list()
         for position, (label, unmasked_name, masked_name) in enumerate(FIGURE_ROWS):
             labels.append(label)
             for offset, (name, color) in enumerate(((unmasked_name, UNMASKED_COLOR), (masked_name, MASKED_COLOR))):
@@ -141,18 +143,24 @@ def figure3(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
                     baseline_value = float(baseline) * 100.0
                 centre = position + (offset - 0.5) * width
                 hatch = RANDOM_HATCH if bool(payload.get("random_shuffle")) else None
+                val = item[0] * 100.0
+                err = item[1] * 100.0
                 axis.bar(
                     centre,
-                    item[0] * 100.0,
+                    val,
                     width=width,
                     color=color,
                     edgecolor="black",
                     linewidth=0.7,
                     hatch=hatch,
-                    yerr=item[1] * 100.0,
+                    yerr=err,
                     capsize=3.0,
                 )
                 drawn += 1
+                top = val + err
+                if top > max_y:
+                    max_y = top
+                bar_annotations.append((centre, top, val))
         if baseline_value is not None:
             axis.axhline(baseline_value, linestyle="--", color="#555555", linewidth=1.0)
             axis.text(
@@ -164,6 +172,21 @@ def figure3(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
                 ha="right",
                 va="bottom",
             )
+            if baseline_value > max_y:
+                max_y = baseline_value
+        if drawn > 0 and max_y > 0:
+            axis.set_ylim(bottom=0, top=max_y * 1.18)
+            y_offset = max_y * 0.02
+            for centre, top, val in bar_annotations:
+                axis.text(
+                    centre,
+                    top + y_offset,
+                    f"{val:.2f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=6.5,
+                    color="#222222",
+                )
         axis.set_xticks(range(len(FIGURE_ROWS)))
         axis.set_xticklabels(labels)
         axis.set_title(f"Recall@{k}")
@@ -196,6 +219,8 @@ def uc_figure(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
         axis.text(0.5, 0.5, "no unseen-complex runs", transform=axis.transAxes, ha="center", va="center")
     else:
         width = 0.8 / len(available)
+        max_y = 0.0
+        bar_annotations = list()
         for offset, name in enumerate(available):
             payload = runs[name]
             values = list()
@@ -215,11 +240,19 @@ def uc_figure(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
                 linewidth=0.7,
                 label=str(payload.get("label") or name),
             )
+            for c, val, err in zip(centres, values, errors):
+                top = val + err
+                if top > max_y:
+                    max_y = top
+                bar_annotations.append((c, top, val))
         baseline = runs[available[0]].get("random_baseline") or dict()
         for index, k in enumerate(ks):
             value = baseline.get(str(int(k)))
             if value is None:
                 continue
+            base_val = float(value) * 100.0
+            if base_val > max_y:
+                max_y = base_val
             axis.plot(
                 [index - 0.45, index + 0.45],
                 [float(value) * 100.0, float(value) * 100.0],
@@ -227,6 +260,19 @@ def uc_figure(runs: dict, path: Path, ks=(1, 5, 10)) -> Path:
                 color="#555555",
                 linewidth=1.0,
             )
+        if max_y > 0:
+            axis.set_ylim(bottom=0, top=max_y * 1.18)
+            y_offset = max_y * 0.02
+            for centre, top, val in bar_annotations:
+                axis.text(
+                    centre,
+                    top + y_offset,
+                    f"{val:.2f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=7,
+                    color="#222222",
+                )
         axis.legend(frameon=False)
     axis.set_xticks(range(len(ks)))
     axis.set_xticklabels([f"Recall@{k}" for k in ks])
